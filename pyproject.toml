@@ -1,0 +1,26 @@
+[project]
+name = "pydantic-torch"
+version = "0.1.0"
+description = "Pydantic + PyTorch hybrid module utilities"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.7",
+  "torch>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "numpy>=2.4.2",
+    "pytest>=8.0",
+    "torchvision>=0.25.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
