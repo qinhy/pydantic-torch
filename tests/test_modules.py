@@ -202,3 +202,85 @@ def test_jit_trace() -> None:
     out = traced(torch.randn(2, 10, dtype=torch.float64))
 
     assert out.shape == (2, 5)
+
+def test_linear_bias_false() -> None:
+    linear = nn.Linear(in_features=6, out_features=2, bias=False)
+    y = linear(torch.randn(3, 6))
+    assert y.shape == (3, 2)
+    assert linear.bias is None
+
+def test_conv2d_forward_and_config() -> None:
+    conv = nn.Conv2d(
+        in_channels=3,
+        out_channels=4,
+        kernel_size=3,
+        stride=2,
+        padding=1,
+        bias=False,
+    )
+
+    x = torch.randn(2, 3, 8, 8)
+    y = conv(x)
+
+    assert y.shape == (2, 4, 4, 4)
+    assert conv.bias is None
+    assert conv.model_dump()["in_channels"] == 3
+    assert conv.model_dump()["out_channels"] == 4
+
+
+def test_relu_forward_and_config() -> None:
+    relu = nn.ReLU(inplace=True)
+    x = torch.tensor([[-1.0, 2.0]])
+    y = relu(x)
+
+    assert torch.equal(y, torch.tensor([[0.0, 2.0]]))
+    assert relu.model_dump()["inplace"] is True
+
+
+def test_batchnorm2d_forward_and_config() -> None:
+    norm = nn.BatchNorm2d(num_features=4, affine=False, track_running_stats=True)
+    x = torch.randn(2, 4, 8, 8)
+    y = norm(x)
+
+    assert y.shape == x.shape
+    assert norm.weight is None
+    assert norm.bias is None
+    assert norm.running_mean is not None
+    assert norm.model_dump()["num_features"] == 4
+
+
+def test_maxpool2d_forward_and_config() -> None:
+    pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+    x = torch.randn(2, 3, 8, 8)
+    y = pool(x)
+
+    assert y.shape == (2, 3, 4, 4)
+    assert pool.model_dump()["kernel_size"] == 2
+    assert pool.model_dump()["stride"] == 2
+
+
+def test_adaptive_avg_pool2d_forward_and_config() -> None:
+    pool = nn.AdaptiveAvgPool2d(output_size=(2, 3))
+    x = torch.randn(2, 3, 8, 8)
+    y = pool(x)
+
+    assert y.shape == (2, 3, 2, 3)
+    assert pool.model_dump()["output_size"] == (2, 3)
+
+
+def test_embedding_forward_and_config() -> None:
+    embedding = nn.Embedding(
+        num_embeddings=10,
+        embedding_dim=4,
+        padding_idx=0,
+        freeze=True,
+    )
+    x = torch.tensor([[0, 1, 2], [3, 4, 5]], dtype=torch.long)
+    y = embedding(x)
+
+    assert y.shape == (2, 3, 4)
+    assert embedding.weight is not None
+    assert embedding.weight.requires_grad is False
+    assert embedding.model_dump()["num_embeddings"] == 10
+    assert embedding.model_dump()["embedding_dim"] == 4
+    assert embedding.model_dump()["padding_idx"] == 0

@@ -34,6 +34,12 @@ class Module(BaseModel, torch.nn.Module):
     training: bool = Field(default=True, exclude=True)
     uuid: str = Field(default=None)
 
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return torch.nn.Module.__getattr__(self, name)
+        except AttributeError:
+            return BaseModel.__getattr__(self, name)
+
     def __setattr__(self, name: str, value: Any) -> None:
         # Important: keep Torch registration behavior and still satisfy Pydantic
         torch.nn.Module.__setattr__(self, name, value)
@@ -75,11 +81,50 @@ class Linear(Module, torch.nn.Linear):
     in_features: int = Field(default=10, ge=1)
     out_features: int = Field(default=5, ge=1)
     weight: torch.Tensor = Field(default=None, exclude=True)
-    bias: Optional[Union[torch.Tensor, torch.nn.Parameter, bool]] = Field(default=None, exclude=True)
+    bias: Optional[Union[torch.Tensor, torch.nn.Parameter, bool]] = Field(default=True, exclude=True)
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        torch.nn.Linear.__init__(self, **self.model_dump(exclude=["uuid"]))
+        bias = self.bias
+        torch.nn.Linear.__init__(self,                                  
+            in_features=self.in_features,
+            out_features=self.out_features,
+            bias=True,
+        )
+        if bias is None or not bias:
+            self.bias = None
+
+class Conv2d(Module, torch.nn.Conv2d):
+    in_channels: int = Field(default=1, ge=1)
+    out_channels: int = Field(default=1, ge=1)
+    kernel_size: Union[int, Tuple[int, int]] = Field(default=3)
+    stride: Union[int, Tuple[int, int]] = Field(default=1)
+    padding: Union[str, int, Tuple[int, int]] = Field(default=0)
+    dilation: Union[int, Tuple[int, int]] = Field(default=1)
+    transposed: bool = Field(default=False, exclude=True)
+    output_padding: Union[int, Tuple[int, int]] = Field(default=0, exclude=True)
+    groups: int = Field(default=1, ge=1)
+    padding_mode: str = Field(default="zeros")
+    weight: torch.Tensor = Field(default=None, exclude=True)
+    bias: Optional[Union[torch.Tensor, torch.nn.Parameter, bool]] = Field(default=True, exclude=True)
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        bias = self.bias
+        torch.nn.Conv2d.__init__(
+            self,
+            in_channels=self.in_channels,
+            out_channels=self.out_channels,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            groups=self.groups,
+            bias=True,
+            padding_mode=self.padding_mode,
+        )
+        if bias is None or not bias:
+            self.bias = None
 
 class LayerNorm(Module, torch.nn.LayerNorm):
     normalized_shape: Union[int,List[int],Tuple[int, ...]]
@@ -92,12 +137,96 @@ class LayerNorm(Module, torch.nn.LayerNorm):
         super().model_post_init(__context)
         torch.nn.LayerNorm.__init__(self, **self.model_dump(exclude=["uuid"]))
 
+class BatchNorm2d(Module, torch.nn.BatchNorm2d):
+    num_features: int = Field(default=1, ge=1)
+    eps: float = Field(default=1e-5, ge=0.0)
+    momentum: Optional[float] = Field(default=0.1)
+    affine: bool = Field(default=True)
+    track_running_stats: bool = Field(default=True)
+    weight: Optional[torch.Tensor] = Field(default=None, exclude=True)
+    bias: Optional[torch.Tensor] = Field(default=None, exclude=True)
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        affine = self.affine
+        torch.nn.BatchNorm2d.__init__(
+            self,
+            num_features=self.num_features,
+            eps=self.eps,
+            momentum=self.momentum,
+            affine=True,
+            track_running_stats=self.track_running_stats,
+        )
+        if not affine:
+            self.affine = False
+            self.weight = None
+            self.bias = None
+
+class MaxPool2d(Module, torch.nn.MaxPool2d):
+    kernel_size: Union[int, Tuple[int, int]] = Field(default=2)
+    stride: Optional[Union[int, Tuple[int, int]]] = Field(default=None)
+    padding: Union[int, Tuple[int, int]] = Field(default=0)
+    dilation: Union[int, Tuple[int, int]] = Field(default=1)
+    return_indices: bool = Field(default=False)
+    ceil_mode: bool = Field(default=False)
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        torch.nn.MaxPool2d.__init__(
+            self,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            padding=self.padding,
+            dilation=self.dilation,
+            return_indices=self.return_indices,
+            ceil_mode=self.ceil_mode,
+        )
+
+class AdaptiveAvgPool2d(Module, torch.nn.AdaptiveAvgPool2d):
+    output_size: Union[int, Tuple[Optional[int], Optional[int]]] = Field(default=1)
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        torch.nn.AdaptiveAvgPool2d.__init__(self, output_size=self.output_size)
+
+class Embedding(Module, torch.nn.Embedding):
+    num_embeddings: int = Field(default=1, ge=1)
+    embedding_dim: int = Field(default=1, ge=1)
+    padding_idx: Optional[int] = Field(default=None)
+    max_norm: Optional[float] = Field(default=None)
+    norm_type: float = Field(default=2.0)
+    scale_grad_by_freq: bool = Field(default=False)
+    sparse: bool = Field(default=False)
+    freeze: bool = Field(default=False, exclude=True)
+    weight: Optional[torch.Tensor] = Field(default=None, exclude=True)
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        torch.nn.Embedding.__init__(
+            self,
+            num_embeddings=self.num_embeddings,
+            embedding_dim=self.embedding_dim,
+            padding_idx=self.padding_idx,
+            max_norm=self.max_norm,
+            norm_type=self.norm_type,
+            scale_grad_by_freq=self.scale_grad_by_freq,
+            sparse=self.sparse,
+            _freeze=self.freeze,
+        )
+
 class GELU(Module, torch.nn.GELU):
     approximate: str = Field(default="none")
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
         torch.nn.GELU.__init__(self, **self.model_dump(exclude=["uuid"]))
+
+class ReLU(Module, torch.nn.ReLU):
+    inplace: bool = Field(default=False)
+
+    def model_post_init(self, __context):
+        super().model_post_init(__context)
+        torch.nn.ReLU.__init__(self, inplace=self.inplace)
 
 
 class Dropout(Module, torch.nn.Dropout):
