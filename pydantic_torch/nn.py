@@ -1,4 +1,5 @@
 from .modules import *
+from .containers import ModuleList
 from . import vit
 
 class Module(Module):pass
@@ -13,6 +14,9 @@ class GELU(GELU):pass
 class ReLU(ReLU):pass
 class Dropout(Dropout):pass
 class Identity(Identity):pass
+
+class ModuleList(ModuleList):pass
+
 class PatchEmbedNoConv(vit.PatchEmbedNoConv):pass
 class MLP(vit.MLP):pass
 class Attention(vit.Attention):pass

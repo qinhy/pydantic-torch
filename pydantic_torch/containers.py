@@ -6,10 +6,9 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Self, overload
 from collections import abc as container_abcs, OrderedDict
 
 from pydantic import Field, PrivateAttr
+from pydantic_torch.modules import Module
 
-from . import modules as nn
-
-class ModuleList(nn.Module):
+class ModuleList(Module):
     r"""Holds submodules in a list.
 
     :class:`~torch.nn.ModuleList` can be indexed like a regular Python list, but
@@ -34,7 +33,7 @@ class ModuleList(nn.Module):
     """
 
     mods: Optional[List[Any]] = Field(default=None)
-    _modules: Dict[str, nn.Module] = PrivateAttr(default_factory=dict)
+    _modules: Dict[str, Module] = PrivateAttr(default_factory=dict)
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -56,15 +55,15 @@ class ModuleList(nn.Module):
     def __getitem__(self, idx: slice) -> ModuleList: ...
 
     @overload
-    def __getitem__(self, idx: int) -> nn.Module: ...
+    def __getitem__(self, idx: int) -> Module: ...
 
-    def __getitem__(self, idx: int | slice) -> nn.Module | ModuleList:
+    def __getitem__(self, idx: int | slice) -> Module | ModuleList:
         if isinstance(idx, slice):
             return self.__class__(list(self._modules.values())[idx])
         else:
             return self._modules[self._get_abs_string_index(idx)]
 
-    def __setitem__(self, idx: int, module: nn.Module) -> None:
+    def __setitem__(self, idx: int, module: Module) -> None:
         idx = self._get_abs_string_index(idx)
         return setattr(self, str(idx), module)
 
@@ -83,13 +82,13 @@ class ModuleList(nn.Module):
     def __len__(self) -> int:
         return len(self._modules)
 
-    def __iter__(self) -> Iterator[nn.Module]:
+    def __iter__(self) -> Iterator[Module]:
         return iter(self._modules.values())
 
-    def __iadd__(self, modules: Iterable[nn.Module]) -> Self:
+    def __iadd__(self, modules: Iterable[Module]) -> Self:
         return self.extend(modules)
 
-    def __add__(self, other: Iterable[nn.Module]) -> ModuleList:
+    def __add__(self, other: Iterable[Module]) -> ModuleList:
         import pydantic_torch.nn as nn
         combined = ModuleList()
         for i, module in enumerate(chain(self, other)):
@@ -153,7 +152,7 @@ class ModuleList(nn.Module):
         keys = [key for key in keys if not key.isdigit()]
         return keys
 
-    def insert(self, index: int, module: nn.Module) -> None:
+    def insert(self, index: int, module: Module) -> None:
         r"""Insert a given module before a given index in the list.
 
         Args:
@@ -164,7 +163,7 @@ class ModuleList(nn.Module):
             self._modules[str(i)] = self._modules[str(i - 1)]
         self._modules[str(index)] = module
 
-    def append(self, module: nn.Module) -> Self:
+    def append(self, module: Module) -> Self:
         r"""Append a given module to the end of the list.
 
         Args:
@@ -173,12 +172,12 @@ class ModuleList(nn.Module):
         self.add_module(str(len(self)), module)
         return self
 
-    def pop(self, key: int | slice) -> nn.Module:
+    def pop(self, key: int | slice) -> Module:
         v = self[key]
         del self[key]
         return v
 
-    def extend(self, modules: Iterable[nn.Module]) -> Self:
+    def extend(self, modules: Iterable[Module]) -> Self:
         r"""Append modules from a Python iterable to the end of the list.
 
         Args:

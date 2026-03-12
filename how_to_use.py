@@ -72,8 +72,8 @@ def main() -> None:
     logits = vit(img)
     print(f"vit output shape: {tuple(logits.shape)}")
     print(vit.model_dump())
-    # print(nn.VisionTransformer(**vit.model_dump()))
-    # print(vit.clone())
+    print(nn.VisionTransformer(**vit.model_dump()))
+    print(vit.clone())
 
 
 if __name__ == "__main__":

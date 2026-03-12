@@ -4,9 +4,7 @@ from typing import Any, Literal
 
 import torch
 from pydantic import Field
-
 import pydantic_torch.nn as nn
-from pydantic_torch.containers import ModuleList
 
 
 class Projection(nn.Module):
@@ -153,7 +151,7 @@ class ResNet(nn.Module):
     stem_norm: nn.BatchNorm2d = Field(default=None)
     stem_relu: nn.ReLU = Field(default=None)
     stem_pool: nn.MaxPool2d = Field(default=None)
-    stages: ModuleList = Field(default=None)
+    stages: nn.ModuleList = Field(default=None)
     head_pool: nn.AdaptiveAvgPool2d = Field(default=None)
     head: nn.Linear = Field(default=None)
 
@@ -181,28 +179,28 @@ class ResNet(nn.Module):
         self.head_pool = nn.AdaptiveAvgPool2d(output_size=1)
         self.head = nn.Linear(in_features=head_in_features, out_features=self.num_classes)
 
-    def _make_basic_stages(self) -> ModuleList:
-        return ModuleList(
+    def _make_basic_stages(self) -> nn.ModuleList:
+        return nn.ModuleList(
             mods=[
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         BasicBlock(in_channels=64, out_channels=64),
                         BasicBlock(in_channels=64, out_channels=64),
                     ]
                 ),
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         BasicBlock(in_channels=64, out_channels=128, stride=2),
                         BasicBlock(in_channels=128, out_channels=128),
                     ]
                 ),
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         BasicBlock(in_channels=128, out_channels=256, stride=2),
                         BasicBlock(in_channels=256, out_channels=256),
                     ]
                 ),
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         BasicBlock(in_channels=256, out_channels=512, stride=2),
                         BasicBlock(in_channels=512, out_channels=512),
@@ -211,17 +209,17 @@ class ResNet(nn.Module):
             ]
         )
 
-    def _make_bottleneck_stages(self) -> ModuleList:
-        return ModuleList(
+    def _make_bottleneck_stages(self) -> nn.ModuleList:
+        return nn.ModuleList(
             mods=[
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         Bottleneck(in_channels=64, bottleneck_channels=64),
                         Bottleneck(in_channels=256, bottleneck_channels=64),
                         Bottleneck(in_channels=256, bottleneck_channels=64),
                     ]
                 ),
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         Bottleneck(in_channels=256, bottleneck_channels=128, stride=2),
                         Bottleneck(in_channels=512, bottleneck_channels=128),
@@ -229,7 +227,7 @@ class ResNet(nn.Module):
                         Bottleneck(in_channels=512, bottleneck_channels=128),
                     ]
                 ),
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         Bottleneck(in_channels=512, bottleneck_channels=256, stride=2),
                         Bottleneck(in_channels=1024, bottleneck_channels=256),
@@ -239,7 +237,7 @@ class ResNet(nn.Module):
                         Bottleneck(in_channels=1024, bottleneck_channels=256),
                     ]
                 ),
-                ModuleList(
+                nn.ModuleList(
                     mods=[
                         Bottleneck(in_channels=1024, bottleneck_channels=512, stride=2),
                         Bottleneck(in_channels=2048, bottleneck_channels=512),
