@@ -2,29 +2,14 @@ from __future__ import annotations
 
 from itertools import chain
 import operator
-from typing import Any, Callable, ClassVar, Dict, Iterable, Iterator, List, Optional, Self, overload
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Self, overload
 from collections import abc as container_abcs, OrderedDict
 
 from pydantic import Field, PrivateAttr
 
-import pydantic_torch.vit as vit
-from .modules import *
+from . import modules as nn
 
-class nn:
-    class Module(Module):pass
-    class Linear(Linear):pass
-    class Conv2d(Conv2d):pass
-    class LayerNorm(LayerNorm):pass
-    class BatchNorm2d(BatchNorm2d):pass
-    class MaxPool2d(MaxPool2d):pass
-    class AdaptiveAvgPool2d(AdaptiveAvgPool2d):pass
-    class Embedding(Embedding):pass
-    class GELU(GELU):pass
-    class ReLU(ReLU):pass
-    class Dropout(Dropout):pass
-    class Identity(Identity):pass
-
-class ModuleList(Module):
+class ModuleList(nn.Module):
     r"""Holds submodules in a list.
 
     :class:`~torch.nn.ModuleList` can be indexed like a regular Python list, but
@@ -49,7 +34,7 @@ class ModuleList(Module):
     """
 
     mods: Optional[List[Any]] = Field(default=None)
-    _modules: Dict[str, Module] = PrivateAttr(default_factory=dict)
+    _modules: Dict[str, nn.Module] = PrivateAttr(default_factory=dict)
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
@@ -71,15 +56,15 @@ class ModuleList(Module):
     def __getitem__(self, idx: slice) -> ModuleList: ...
 
     @overload
-    def __getitem__(self, idx: int) -> Module: ...
+    def __getitem__(self, idx: int) -> nn.Module: ...
 
-    def __getitem__(self, idx: int | slice) -> Module | ModuleList:
+    def __getitem__(self, idx: int | slice) -> nn.Module | ModuleList:
         if isinstance(idx, slice):
             return self.__class__(list(self._modules.values())[idx])
         else:
             return self._modules[self._get_abs_string_index(idx)]
 
-    def __setitem__(self, idx: int, module: Module) -> None:
+    def __setitem__(self, idx: int, module: nn.Module) -> None:
         idx = self._get_abs_string_index(idx)
         return setattr(self, str(idx), module)
 
@@ -98,19 +83,19 @@ class ModuleList(Module):
     def __len__(self) -> int:
         return len(self._modules)
 
-    def __iter__(self) -> Iterator[Module]:
+    def __iter__(self) -> Iterator[nn.Module]:
         return iter(self._modules.values())
 
-    def __iadd__(self, modules: Iterable[Module]) -> Self:
+    def __iadd__(self, modules: Iterable[nn.Module]) -> Self:
         return self.extend(modules)
 
-    def __add__(self, other: Iterable[Module]) -> ModuleList:
+    def __add__(self, other: Iterable[nn.Module]) -> ModuleList:
+        import pydantic_torch.nn as nn
         combined = ModuleList()
         for i, module in enumerate(chain(self, other)):
             if type(module) is dict:
                 name = module["uuid"].split(":")[0]
-                module_cls = nn.__dict__.get(name,
-                        vit.__dict__.get(name))
+                module_cls = nn.__dict__.get(name)
                 assert module_cls is not None
                 module = module_cls(**module)
 
@@ -168,7 +153,7 @@ class ModuleList(Module):
         keys = [key for key in keys if not key.isdigit()]
         return keys
 
-    def insert(self, index: int, module: Module) -> None:
+    def insert(self, index: int, module: nn.Module) -> None:
         r"""Insert a given module before a given index in the list.
 
         Args:
@@ -179,7 +164,7 @@ class ModuleList(Module):
             self._modules[str(i)] = self._modules[str(i - 1)]
         self._modules[str(index)] = module
 
-    def append(self, module: Module) -> Self:
+    def append(self, module: nn.Module) -> Self:
         r"""Append a given module to the end of the list.
 
         Args:
@@ -188,12 +173,12 @@ class ModuleList(Module):
         self.add_module(str(len(self)), module)
         return self
 
-    def pop(self, key: int | slice) -> Module:
+    def pop(self, key: int | slice) -> nn.Module:
         v = self[key]
         del self[key]
         return v
 
-    def extend(self, modules: Iterable[Module]) -> Self:
+    def extend(self, modules: Iterable[nn.Module]) -> Self:
         r"""Append modules from a Python iterable to the end of the list.
 
         Args:

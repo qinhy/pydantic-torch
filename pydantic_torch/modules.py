@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Callable, ClassVar, List, Optional, Self, Tuple, Union
+from typing import Any, Callable, ClassVar, List, Optional, Tuple, Union
 from uuid import uuid4
 
 import torch
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
 # -----------------------------------------------------------------------------
@@ -228,10 +228,20 @@ class ReLU(Module, torch.nn.ReLU):
         super().model_post_init(__context)
         torch.nn.ReLU.__init__(self, inplace=self.inplace)
 
-
 class Dropout(Module, torch.nn.Dropout):
     p: float = Field(default=0.5, ge=0.0, le=1.0)
     inplace: bool = Field(default=False)
-    
+
+class DropPath(Module):
+    drop_prob: float = Field(default=0.0, ge=0.0, le=1.0)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.drop_prob == 0.0 or not self.training:
+            return x
+        keep_prob = 1.0 - self.drop_prob
+        shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+        mask = x.new_empty(shape).bernoulli_(keep_prob)
+        return x * mask / keep_prob
+      
 class Identity(torch.nn.Identity, Module):
     pass

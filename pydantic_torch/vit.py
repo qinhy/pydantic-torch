@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import math
 from typing import Any, Optional
 
 import torch
 from pydantic import Field
-from .modules import *
-from .containers import *
+from . import modules as nn
+from .containers import ModuleList
 
 def _trunc_normal_(t: torch.Tensor, mean: float = 0.0, std: float = 0.02, a: float = -2.0, b: float = 2.0) -> torch.Tensor:
     # Prefer native trunc_normal_ if available.
@@ -18,18 +17,6 @@ def _trunc_normal_(t: torch.Tensor, mean: float = 0.0, std: float = 0.02, a: flo
         t.normal_(mean, std)
         t.clamp_(min=a * std + mean, max=b * std + mean)
     return t
-
-
-class DropPath(nn.Module):
-    drop_prob: float = Field(default=0.0, ge=0.0, le=1.0)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.drop_prob == 0.0 or not self.training:
-            return x
-        keep_prob = 1.0 - self.drop_prob
-        shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-        mask = x.new_empty(shape).bernoulli_(keep_prob)
-        return x * mask / keep_prob
 
 
 class PatchEmbedNoConv(nn.Module):
@@ -158,8 +145,8 @@ class SelfAttentionBlock(nn.Module):
     norm2: nn.LayerNorm = Field(default=None)
     attn: Attention = Field(default=None)
     mlp: MLP = Field(default=None)
-    dp1: DropPath = Field(default=None)
-    dp2: DropPath = Field(default=None)
+    dp1: nn.DropPath = Field(default=None)
+    dp2: nn.DropPath = Field(default=None)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -171,12 +158,12 @@ class SelfAttentionBlock(nn.Module):
             attn_drop=self.attn_drop,
             proj_drop=self.drop,
         )
-        self.dp1 = DropPath(drop_prob=self.drop_path)
+        self.dp1 = nn.DropPath(drop_prob=self.drop_path)
 
         self.norm2 = nn.LayerNorm(normalized_shape=self.dim)
         hidden_dim = int(self.dim * self.mlp_ratio)
         self.mlp = MLP(dim=self.dim, hidden_dim=hidden_dim, drop=self.drop)
-        self.dp2 = DropPath(drop_prob=self.drop_path)
+        self.dp2 = nn.DropPath(drop_prob=self.drop_path)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x + self.dp1(self.attn(self.norm1(x)))

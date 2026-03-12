@@ -4,9 +4,7 @@ from typing import Any
 
 import torch
 from pydantic import Field, ValidationError
-
 import pydantic_torch.nn as nn
-from pydantic_torch.vit import VisionTransformer
 
 
 class ThreeLayerNet(nn.Module):
@@ -59,7 +57,7 @@ def main() -> None:
     print(f"restored output shape: {tuple(restored_out.shape)}")
 
     print("\n5) Small Vision Transformer example")
-    vit = VisionTransformer(
+    vit = nn.VisionTransformer(
         img_size=32,
         patch_size=8,
         in_chans=3,
@@ -74,7 +72,7 @@ def main() -> None:
     logits = vit(img)
     print(f"vit output shape: {tuple(logits.shape)}")
     print(vit.model_dump())
-    # print(VisionTransformer(**vit.model_dump()))
+    # print(nn.VisionTransformer(**vit.model_dump()))
     # print(vit.clone())
 
 
