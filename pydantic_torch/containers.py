@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from itertools import chain
 import operator
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Self, overload
+from typing import Any, Dict, Iterable, Iterator, List, Optional, overload
 from collections import abc as container_abcs, OrderedDict
 
 from pydantic import Field, PrivateAttr
@@ -85,7 +85,7 @@ class ModuleList(Module):
     def __iter__(self) -> Iterator[Module]:
         return iter(self._modules.values())
 
-    def __iadd__(self, modules: Iterable[Module]) -> Self:
+    def __iadd__(self, modules: Iterable[Module]):
         return self.extend(modules)
 
     def __add__(self, other: Iterable[Module]) -> ModuleList:
@@ -163,7 +163,7 @@ class ModuleList(Module):
             self._modules[str(i)] = self._modules[str(i - 1)]
         self._modules[str(index)] = module
 
-    def append(self, module: Module) -> Self:
+    def append(self, module: Module):
         r"""Append a given module to the end of the list.
 
         Args:
@@ -177,7 +177,7 @@ class ModuleList(Module):
         del self[key]
         return v
 
-    def extend(self, modules: Iterable[Module]) -> Self:
+    def extend(self, modules: Iterable[Module]):
         r"""Append modules from a Python iterable to the end of the list.
 
         Args:

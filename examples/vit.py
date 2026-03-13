@@ -38,7 +38,7 @@ class PatchEmbedNoConv(nn.Module):
         self.num_patches = grid * grid
 
         patch_dim = self.in_chans * self.patch_size * self.patch_size
-        self.proj = nn.Linear(in_features=patch_dim, out_features=self.embed_dim)
+        self.proj = nn.Linear(in_features=patch_dim, out_features=self.embed_dim, device=self.device, dtype=self.dtype)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, C, H, W) -> (B, N, patch_dim) -> (B, N, D)
@@ -74,8 +74,8 @@ class MLP(nn.Module):
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
-        self.fc1 = nn.Linear(in_features=self.dim, out_features=self.hidden_dim)
-        self.fc2 = nn.Linear(in_features=self.hidden_dim, out_features=self.dim)
+        self.fc1 = nn.Linear(in_features=self.dim, out_features=self.hidden_dim, device=self.device, dtype=self.dtype)
+        self.fc2 = nn.Linear(in_features=self.hidden_dim, out_features=self.dim, device=self.device, dtype=self.dtype)
         self.act = nn.GELU()
         self.dropout = nn.Dropout(p=self.drop)
 
@@ -110,8 +110,8 @@ class Attention(nn.Module):
         self.head_dim = self.dim // self.num_heads
         self.scale = self.head_dim ** -0.5
 
-        self.qkv = nn.Linear(in_features=self.dim, out_features=3 * self.dim, bias=self.qkv_bias)
-        self.proj = nn.Linear(in_features=self.dim, out_features=self.dim)
+        self.qkv = nn.Linear(in_features=self.dim, out_features=3 * self.dim, bias=self.qkv_bias, device=self.device, dtype=self.dtype)
+        self.proj = nn.Linear(in_features=self.dim, out_features=self.dim, device=self.device, dtype=self.dtype)
         self.attn_dropout = nn.Dropout(p=self.attn_drop)
         self.proj_dropout = nn.Dropout(p=self.proj_drop)
 
@@ -152,19 +152,21 @@ class SelfAttentionBlock(nn.Module):
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
-        self.norm1 = nn.LayerNorm(normalized_shape=self.dim)
+        self.norm1 = nn.LayerNorm(normalized_shape=self.dim, device=self.device, dtype=self.dtype)
         self.attn = Attention(
             dim=self.dim,
             num_heads=self.num_heads,
             qkv_bias=self.qkv_bias,
             attn_drop=self.attn_drop,
             proj_drop=self.drop,
+            device=self.device,
+            dtype=self.dtype,
         )
         self.dp1 = nn.DropPath(drop_prob=self.drop_path)
 
-        self.norm2 = nn.LayerNorm(normalized_shape=self.dim)
+        self.norm2 = nn.LayerNorm(normalized_shape=self.dim, device=self.device, dtype=self.dtype)
         hidden_dim = int(self.dim * self.mlp_ratio)
-        self.mlp = MLP(dim=self.dim, hidden_dim=hidden_dim, drop=self.drop)
+        self.mlp = MLP(dim=self.dim, hidden_dim=hidden_dim, drop=self.drop, device=self.device, dtype=self.dtype)
         self.dp2 = nn.DropPath(drop_prob=self.drop_path)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -209,11 +211,13 @@ class VisionTransformer(nn.Module):
             patch_size=self.patch_size,
             in_chans=self.in_chans,
             embed_dim=self.embed_dim,
+            device=self.device,
+            dtype=self.dtype,
         )
         self.num_patches = self.patch_embed.num_patches
 
-        self.cls_token = torch.nn.Parameter(torch.zeros(1, 1, self.embed_dim))
-        self.pos_embed = torch.nn.Parameter(torch.zeros(1, 1 + self.num_patches, self.embed_dim))
+        self.cls_token = torch.nn.Parameter(torch.zeros(1, 1, self.embed_dim, device=self.device, dtype=self.dtype))
+        self.pos_embed = torch.nn.Parameter(torch.zeros(1, 1 + self.num_patches, self.embed_dim, device=self.device, dtype=self.dtype))
         self.pos_drop = nn.Dropout(p=self.drop_rate)
 
         # linearly increasing stochastic depth
@@ -231,12 +235,15 @@ class VisionTransformer(nn.Module):
                 drop=self.drop_rate,
                 attn_drop=self.attn_drop_rate,
                 drop_path=dpr[i],
+                device=self.device,
+                dtype=self.dtype,
             )
             for i in range(self.depth)
         ]
 
-        self.norm = nn.LayerNorm(normalized_shape=self.embed_dim)
-        self.head = nn.Linear(in_features=self.embed_dim, out_features=self.num_classes) if self.num_classes > 0 else nn.Identity()
+        self.norm = nn.LayerNorm(normalized_shape=self.embed_dim, device=self.device, dtype=self.dtype)
+        self.head = nn.Linear(in_features=self.embed_dim, out_features=self.num_classes,
+                              device=self.device, dtype=self.dtype) if self.num_classes > 0 else nn.Identity()
 
         self._init_weights()
 

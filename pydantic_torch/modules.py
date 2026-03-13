@@ -34,6 +34,9 @@ class Module(BaseModel, torch.nn.Module):
     training: bool = Field(default=True, exclude=True)
     uuid: str = Field(default=None)
 
+    device: str = Field(default="cpu", exclude=True)
+    dtype: Any = Field(default=torch.float32, exclude=True)
+
     def __getattr__(self, name: str) -> Any:
         try:
             return torch.nn.Module.__getattr__(self, name)
@@ -90,6 +93,8 @@ class Linear(Module, torch.nn.Linear):
             in_features=self.in_features,
             out_features=self.out_features,
             bias=True,
+            device=self.device,
+            dtype=self.dtype,
         )
         if bias is None or not bias:
             self.bias = None
@@ -122,6 +127,8 @@ class Conv2d(Module, torch.nn.Conv2d):
             groups=self.groups,
             bias=True,
             padding_mode=self.padding_mode,
+            device=self.device,
+            dtype=self.dtype,
         )
         if bias is None or not bias:
             self.bias = None
@@ -136,6 +143,8 @@ class LayerNorm(Module, torch.nn.LayerNorm):
     def model_post_init(self, __context):
         super().model_post_init(__context)
         torch.nn.LayerNorm.__init__(self, **self.model_dump(exclude=["uuid"]))
+        torch.nn.LayerNorm.to(self,device=self.device)
+        torch.nn.LayerNorm.to(self,self.dtype)
 
 class BatchNorm2d(Module, torch.nn.BatchNorm2d):
     num_features: int = Field(default=1, ge=1)
@@ -156,6 +165,8 @@ class BatchNorm2d(Module, torch.nn.BatchNorm2d):
             momentum=self.momentum,
             affine=True,
             track_running_stats=self.track_running_stats,
+            device=self.device,
+            dtype=self.dtype,
         )
         if not affine:
             self.affine = False
@@ -212,6 +223,8 @@ class Embedding(Module, torch.nn.Embedding):
             scale_grad_by_freq=self.scale_grad_by_freq,
             sparse=self.sparse,
             _freeze=self.freeze,
+            device=self.device,
+            dtype=self.dtype,
         )
 
 class GELU(Module, torch.nn.GELU):

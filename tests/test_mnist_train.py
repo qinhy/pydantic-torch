@@ -16,7 +16,7 @@ datasets = torchvision.datasets
 transforms = torchvision.transforms
 
 
-def vit_nano_mnist(num_classes: int = 10) -> VisionTransformer:
+def vit_nano_mnist(num_classes: int = 10, device="cpu") -> VisionTransformer:
     # 28x28 with patch 7 => 4x4 = 16 patches (very small token count)
     return VisionTransformer(
         img_size=28,
@@ -31,6 +31,7 @@ def vit_nano_mnist(num_classes: int = 10) -> VisionTransformer:
         drop_rate=0.0,
         attn_drop_rate=0.0,
         drop_path_rate=0.0,
+        device=device,
     )
 
 def _build_mnist_loaders(root: str) -> tuple[DataLoader, DataLoader]:
@@ -56,11 +57,11 @@ def _build_mnist_loaders(root: str) -> tuple[DataLoader, DataLoader]:
 
 def test_train_simple_mnist() -> None:
     torch.manual_seed(0)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     train_loader, test_loader = _build_mnist_loaders(root=".data")
 
-    model = vit_nano_mnist().to(device)
+    model = vit_nano_mnist(device=device)
     opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
 
