@@ -154,7 +154,7 @@ class ResNet(nn.Module):
     stages: List[List[Union[BasicBlock,Bottleneck]]] = Field(default=None)
     head_pool: nn.AdaptiveAvgPool2d = Field(default=None)
     head: nn.Linear = Field(default=None)    
-    act:  nn.ReLU = Field(default=nn.ReLU(inplace=True))
+    stages_act:  nn.ReLU = Field(default=nn.ReLU(inplace=True))
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -171,10 +171,10 @@ class ResNet(nn.Module):
         self.stem_pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         if self.variant == "resnet18":
-            self.stages = self._make_basic_stages(self.act)
+            self.stages = self._make_basic_stages(self.stages_act)
             head_in_features = 512
         if self.variant == "resnet50":
-            self.stages = self._make_bottleneck_stages(self.act)
+            self.stages = self._make_bottleneck_stages(self.stages_act)
             head_in_features = 2048
 
         self.head_pool = nn.AdaptiveAvgPool2d(output_size=1)
