@@ -9,7 +9,7 @@ from pydantic import Field
 from torch.utils.data import DataLoader, Subset
 
 import pydantic_torch.nn as nn
-from pydantic_torch.vit import VisionTransformer
+from examples.vit import VisionTransformer
 
 torchvision = pytest.importorskip("torchvision")
 datasets = torchvision.datasets

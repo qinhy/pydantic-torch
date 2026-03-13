@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import torch
 from pydantic import Field
-from . import modules as nn
-from .containers import ModuleList
+
+from pydantic_torch.utils import scaled_dot_product_attention
+from pydantic_torch import modules as nn
 
 def _trunc_normal_(t: torch.Tensor, mean: float = 0.0, std: float = 0.02, a: float = -2.0, b: float = 2.0) -> torch.Tensor:
     # Prefer native trunc_normal_ if available.
@@ -117,15 +118,16 @@ class Attention(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, N, D)
         B, N, D = x.shape
-        qkv = self.qkv(x)  # (B, N, 3D)
-        qkv = qkv.reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]  # (B, H, N, Hd)
+        out = scaled_dot_product_attention(self.qkv(x), self.num_heads, self.head_dim, scale=self.scale)
 
-        attn = (q @ k.transpose(-2, -1)) * self.scale  # (B, H, N, N)
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_dropout(attn)
+        # qkv = self.qkv(x)  # (B, N, 3D)
+        # qkv = qkv.reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        # q, k, v = qkv[0], qkv[1], qkv[2]  # (B, H, N, Hd)
+        # attn = (q @ k.transpose(-2, -1)) * self.scale  # (B, H, N, N)
+        # attn = attn.softmax(dim=-1)
+        # attn = self.attn_dropout(attn)
+        # out = attn @ v  # (B, H, N, Hd)
 
-        out = attn @ v  # (B, H, N, Hd)
         out = out.transpose(1, 2).reshape(B, N, D)  # (B, N, D)
         out = self.proj(out)
         out = self.proj_dropout(out)
@@ -189,7 +191,7 @@ class VisionTransformer(nn.Module):
 
     patch_embed: PatchEmbedNoConv = Field(default=None)
     pos_drop: nn.Dropout = Field(default=nn.Dropout)
-    blocks: ModuleList = Field(default_factory=ModuleList)
+    blocks: List[SelfAttentionBlock] = Field(default_factory=list)
     norm: nn.LayerNorm = Field(default=None)
     head: nn.Linear = Field(default=None)
 
@@ -220,7 +222,7 @@ class VisionTransformer(nn.Module):
         else:
             dpr = torch.linspace(0.0, self.drop_path_rate, self.depth).tolist()
 
-        self.blocks = ModuleList(mods=[
+        self.blocks = [
             SelfAttentionBlock(
                 dim=self.embed_dim,
                 num_heads=self.num_heads,
@@ -231,7 +233,7 @@ class VisionTransformer(nn.Module):
                 drop_path=dpr[i],
             )
             for i in range(self.depth)
-        ])
+        ]
 
         self.norm = nn.LayerNorm(normalized_shape=self.embed_dim)
         self.head = nn.Linear(in_features=self.embed_dim, out_features=self.num_classes) if self.num_classes > 0 else nn.Identity()

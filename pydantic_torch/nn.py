@@ -1,6 +1,5 @@
 from .modules import *
 from .containers import ModuleList
-from . import vit
 
 class Module(Module):pass
 class Linear(Linear):pass
@@ -16,9 +15,3 @@ class Dropout(Dropout):pass
 class Identity(Identity):pass
 
 class ModuleList(ModuleList):pass
-
-class PatchEmbedNoConv(vit.PatchEmbedNoConv):pass
-class MLP(vit.MLP):pass
-class Attention(vit.Attention):pass
-class SelfAttentionBlock(vit.SelfAttentionBlock):pass
-class VisionTransformer(vit.VisionTransformer):pass

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, List, Literal, Union
 
 import torch
 from pydantic import Field
@@ -39,10 +39,10 @@ class BasicBlock(nn.Module):
 
     conv1: nn.Conv2d = Field(default=None)
     norm1: nn.BatchNorm2d = Field(default=None)
-    relu: nn.ReLU = Field(default=None)
+    act: nn.ReLU = Field(default=None)
     conv2: nn.Conv2d = Field(default=None)
     norm2: nn.BatchNorm2d = Field(default=None)
-    shortcut: Any = Field(default=None)
+    shortcut: Union[nn.Identity,Projection] = Field(default=None)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -55,7 +55,7 @@ class BasicBlock(nn.Module):
             bias=False,
         )
         self.norm1 = nn.BatchNorm2d(num_features=self.out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        if self.act is None: self.act = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(
             in_channels=self.out_channels,
             out_channels=self.out_channels,
@@ -76,9 +76,9 @@ class BasicBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = self.shortcut(x)
-        x = self.relu(self.norm1(self.conv1(x)))
+        x = self.act(self.norm1(self.conv1(x)))
         x = self.norm2(self.conv2(x))
-        return self.relu(x + residual)
+        return self.act(x + residual)
 
 
 class Bottleneck(nn.Module):
@@ -94,8 +94,8 @@ class Bottleneck(nn.Module):
     norm2: nn.BatchNorm2d = Field(default=None)
     conv3: nn.Conv2d = Field(default=None)
     norm3: nn.BatchNorm2d = Field(default=None)
-    relu: nn.ReLU = Field(default=None)
-    shortcut: Any = Field(default=None)
+    act:   nn.ReLU = Field(default=None)
+    shortcut: Union[nn.Identity,Projection] = Field(default=None)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -124,7 +124,7 @@ class Bottleneck(nn.Module):
             bias=False,
         )
         self.norm3 = nn.BatchNorm2d(num_features=out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        if self.act is None: self.act = nn.ReLU(inplace=True)
 
         if self.in_channels == out_channels and self.stride == 1:
             self.shortcut = nn.Identity()
@@ -137,10 +137,10 @@ class Bottleneck(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = self.shortcut(x)
-        x = self.relu(self.norm1(self.conv1(x)))
-        x = self.relu(self.norm2(self.conv2(x)))
+        x = self.act(self.norm1(self.conv1(x)))
+        x = self.act(self.norm2(self.conv2(x)))
         x = self.norm3(self.conv3(x))
-        return self.relu(x + residual)
+        return self.act(x + residual)
 
 
 class ResNet(nn.Module):
@@ -151,9 +151,10 @@ class ResNet(nn.Module):
     stem_norm: nn.BatchNorm2d = Field(default=None)
     stem_relu: nn.ReLU = Field(default=None)
     stem_pool: nn.MaxPool2d = Field(default=None)
-    stages: nn.ModuleList = Field(default=None)
+    stages: List[List[Union[BasicBlock,Bottleneck]]] = Field(default=None)
     head_pool: nn.AdaptiveAvgPool2d = Field(default=None)
-    head: nn.Linear = Field(default=None)
+    head: nn.Linear = Field(default=None)    
+    act:  nn.ReLU = Field(default=nn.ReLU(inplace=True))
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -170,82 +171,52 @@ class ResNet(nn.Module):
         self.stem_pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         if self.variant == "resnet18":
-            self.stages = self._make_basic_stages()
+            self.stages = self._make_basic_stages(self.act)
             head_in_features = 512
-        else:
-            self.stages = self._make_bottleneck_stages()
+        if self.variant == "resnet50":
+            self.stages = self._make_bottleneck_stages(self.act)
             head_in_features = 2048
 
         self.head_pool = nn.AdaptiveAvgPool2d(output_size=1)
         self.head = nn.Linear(in_features=head_in_features, out_features=self.num_classes)
 
-    def _make_basic_stages(self) -> nn.ModuleList:
-        return nn.ModuleList(
-            mods=[
-                nn.ModuleList(
-                    mods=[
-                        BasicBlock(in_channels=64, out_channels=64),
-                        BasicBlock(in_channels=64, out_channels=64),
-                    ]
-                ),
-                nn.ModuleList(
-                    mods=[
-                        BasicBlock(in_channels=64, out_channels=128, stride=2),
-                        BasicBlock(in_channels=128, out_channels=128),
-                    ]
-                ),
-                nn.ModuleList(
-                    mods=[
-                        BasicBlock(in_channels=128, out_channels=256, stride=2),
-                        BasicBlock(in_channels=256, out_channels=256),
-                    ]
-                ),
-                nn.ModuleList(
-                    mods=[
-                        BasicBlock(in_channels=256, out_channels=512, stride=2),
-                        BasicBlock(in_channels=512, out_channels=512),
-                    ]
-                ),
-            ]
-        )
+    def _make_basic_stages(self,act=nn.ReLU(inplace=True)) -> nn.ModuleList:
+        return [
+                [BasicBlock(in_channels=64, out_channels=64, act=act.clone()),
+                 BasicBlock(in_channels=64, out_channels=64, act=act.clone()),],
+                
+                [BasicBlock(in_channels=64, out_channels=128, stride=2, act=act.clone()),
+                 BasicBlock(in_channels=128, out_channels=128, act=act.clone()),],
+                
+                [BasicBlock(in_channels=128, out_channels=256, stride=2, act=act.clone()),
+                 BasicBlock(in_channels=256, out_channels=256, act=act.clone()),],
+                
+                [BasicBlock(in_channels=256, out_channels=512, stride=2, act=act.clone()),
+                 BasicBlock(in_channels=512, out_channels=512, act=act.clone()),],
+              ]
 
-    def _make_bottleneck_stages(self) -> nn.ModuleList:
-        return nn.ModuleList(
-            mods=[
-                nn.ModuleList(
-                    mods=[
-                        Bottleneck(in_channels=64, bottleneck_channels=64),
-                        Bottleneck(in_channels=256, bottleneck_channels=64),
-                        Bottleneck(in_channels=256, bottleneck_channels=64),
-                    ]
-                ),
-                nn.ModuleList(
-                    mods=[
-                        Bottleneck(in_channels=256, bottleneck_channels=128, stride=2),
-                        Bottleneck(in_channels=512, bottleneck_channels=128),
-                        Bottleneck(in_channels=512, bottleneck_channels=128),
-                        Bottleneck(in_channels=512, bottleneck_channels=128),
-                    ]
-                ),
-                nn.ModuleList(
-                    mods=[
-                        Bottleneck(in_channels=512, bottleneck_channels=256, stride=2),
-                        Bottleneck(in_channels=1024, bottleneck_channels=256),
-                        Bottleneck(in_channels=1024, bottleneck_channels=256),
-                        Bottleneck(in_channels=1024, bottleneck_channels=256),
-                        Bottleneck(in_channels=1024, bottleneck_channels=256),
-                        Bottleneck(in_channels=1024, bottleneck_channels=256),
-                    ]
-                ),
-                nn.ModuleList(
-                    mods=[
-                        Bottleneck(in_channels=1024, bottleneck_channels=512, stride=2),
-                        Bottleneck(in_channels=2048, bottleneck_channels=512),
-                        Bottleneck(in_channels=2048, bottleneck_channels=512),
-                    ]
-                ),
-            ]
-        )
+    def _make_bottleneck_stages(self,act=nn.ReLU(inplace=True)) -> nn.ModuleList:
+        return [
+                [ Bottleneck(in_channels=64, bottleneck_channels=64, act=act.clone()),
+                  Bottleneck(in_channels=256, bottleneck_channels=64, act=act.clone()),
+                  Bottleneck(in_channels=256, bottleneck_channels=64, act=act.clone()),],
+                
+                [ Bottleneck(in_channels=256, bottleneck_channels=128, stride=2, act=act.clone()),
+                  Bottleneck(in_channels=512, bottleneck_channels=128, act=act.clone()),
+                  Bottleneck(in_channels=512, bottleneck_channels=128, act=act.clone()),
+                  Bottleneck(in_channels=512, bottleneck_channels=128, act=act.clone()),],
+                
+                [ Bottleneck(in_channels=512, bottleneck_channels=256, stride=2, act=act.clone()),
+                  Bottleneck(in_channels=1024, bottleneck_channels=256, act=act.clone()),
+                  Bottleneck(in_channels=1024, bottleneck_channels=256, act=act.clone()),
+                  Bottleneck(in_channels=1024, bottleneck_channels=256, act=act.clone()),
+                  Bottleneck(in_channels=1024, bottleneck_channels=256, act=act.clone()),
+                  Bottleneck(in_channels=1024, bottleneck_channels=256, act=act.clone()),],
+                
+                [ Bottleneck(in_channels=1024, bottleneck_channels=512, stride=2, act=act.clone()),
+                  Bottleneck(in_channels=2048, bottleneck_channels=512, act=act.clone()),
+                  Bottleneck(in_channels=2048, bottleneck_channels=512, act=act.clone()),],
+             ]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.stem_pool(self.stem_relu(self.stem_norm(self.stem_conv(x))))
@@ -269,10 +240,12 @@ def main() -> None:
     x = torch.randn(2, 3, 224, 224)
 
     model18 = resnet18(num_classes=100)
+    model18 = ResNet(**model18.model_dump())
     out18 = model18(x)
     print("resnet18 output shape:", tuple(out18.shape))
 
     model50 = resnet50(num_classes=100)
+    model50 = ResNet(**model50.model_dump())
     out50 = model50(x)
     print("resnet50 output shape:", tuple(out50.shape))
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import torch
-from pydantic_torch.vit import vit_base_patch16_224
+from examples.vit import vit_base_patch16_224
 
 model = vit_base_patch16_224(num_classes=1000)
 
