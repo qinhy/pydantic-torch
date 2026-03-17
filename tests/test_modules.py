@@ -49,7 +49,7 @@ def test_save_load_file()-> None:
     x = torch.randn(2, 10)
     res1 = net(x)
     net.save_file("test_ThreeLayerNet.pt")
-    net2 = ThreeLayerNet.load_file("test_ThreeLayerNet.pt")
+    net2,st = ThreeLayerNet.load_file("test_ThreeLayerNet.pt")
     res2 = net2(x)
     os.remove("test_ThreeLayerNet.pt")
     assert (res1 == res2).all().item()

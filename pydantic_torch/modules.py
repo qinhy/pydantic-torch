@@ -56,20 +56,27 @@ class Module(BaseModel, torch.nn.Module):
         self.register_buffer("running", torch.zeros(3))
         super().model_post_init(__context)
 
-    def clone(self) -> Module:
+    def clone(self,**kwargs) -> Module:
         state = deepcopy(self.state_dict())
-        model = self.__class__(**self.model_dump())
+        args = self.model_dump()
+        args.update(kwargs)
+        model = self.__class__(**args)
         model.load_state_dict(state)
         return model
     
-    def save_file(self, path: str) -> None:
+    def save_file(self, path: str,**kwargs) -> None:
         weights = self.state_dict()
         config = self.model_dump()
         state = {"model": weights, "model_dump": config}
-        torch.save(state, path)
+        state.update(kwargs)
+        try:
+            torch.save(state, path)
+        except Exception as e:
+            print(e)
+            torch.save({"model": weights, "model_dump": config}, path)
 
     @classmethod
-    def load_file(cls, path: str) -> None:
+    def load_file(cls, path: str):
         state = torch.load(path)
         weights = state.get("model", {})
         config = state.get("model_dump", None)
@@ -78,7 +85,7 @@ class Module(BaseModel, torch.nn.Module):
         else:
             model = cls()
         model.load_state_dict(weights)
-        return model
+        return model,{k:v for k,v in state.items() if k not in ["model", "model_dump"]}
 
 class Linear(Module, torch.nn.Linear):
     in_features: int = Field(default=10, ge=1)
