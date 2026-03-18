@@ -28,20 +28,20 @@ class ThreeLayerNet(nn.Module):
 
 
 def main() -> None:
-    print("1) Build a validated model")
+    print("### Build a validated model ###")
     model = ThreeLayerNet(in_features=10, hidden_features=16, out_features=2)
     x = torch.randn(4, 10)
     y = model(x)
     print(f"forward output shape: {tuple(y.shape)}")
 
-    print("\n2) Validation error example")
+    print("\n### Validation error example ###")
     try:
         _ = ThreeLayerNet(in_features=0, hidden_features=16, out_features=2)
     except ValidationError as exc:
         first_error = exc.errors()[0]
         print(f"validation failed: {first_error['loc']} -> {first_error['msg']}")
 
-    print("\n3) Optimizer step")
+    print("\n### Optimizer step ###")
     target = torch.randn(4, 2)
     loss = torch.nn.functional.mse_loss(y, target)
     loss.backward()
@@ -50,14 +50,14 @@ def main() -> None:
     opt.zero_grad()
     print(f"loss: {loss.item():.6f}")
 
-    print("\n4) Save/load with state_dict")
+    print("\n### Save/load with state_dict ###")
     state = model.state_dict()
     restored = ThreeLayerNet(in_features=10, hidden_features=16, out_features=2)
     restored.load_state_dict(state)
     restored_out = restored(x)
     print(f"restored output shape: {tuple(restored_out.shape)}")
 
-    print("\n5) Small Vision Transformer example")
+    print("\n### Small Vision Transformer example ###")
     vit = VisionTransformer(
         img_size=32,
         patch_size=8,
@@ -76,6 +76,14 @@ def main() -> None:
     print(VisionTransformer(**vit.model_dump()))
     print(vit.clone())
 
+    print("\n### Conv2dAct example ###")
+    ca = nn.Conv2dAct(
+        in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1,
+        act=nn.ReLU(),
+    )
+    print(ca(torch.randn(2, 3, 32, 32)).shape)
+    print(ca.model_dump())
+    print(ca.clone())
 
 if __name__ == "__main__":
     main()
