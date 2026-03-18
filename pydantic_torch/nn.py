@@ -17,35 +17,66 @@ class Dropout(Dropout):pass
 class Identity(Identity):pass
 
 class ModuleList(ModuleList):pass
+
+
 # advnace api
+
+def Cls_parse(v,types,cls_dict):
+    # already parsed
+    if isinstance(v, types):
+        return v
+    if not isinstance(v, dict):
+        raise TypeError("obj must be a dict or an instance")
+    raw_uuid = v.get("uuid")
+    if not isinstance(raw_uuid, str) or ":" not in raw_uuid:
+        raise ValueError("obj.uuid must look like 'LayerNorm:...' or 'GELU:...'")
+    kind = raw_uuid.split(":", 1)[0]
+    obj_cls = cls_dict.get(kind)
+    if obj_cls is None:
+        raise ValueError(f"Unknown obj type: {kind}")
+    return obj_cls.model_validate(v)
+
 class Acts:
     types = Union[ReLU, GELU]
     cls = {"ReLU": ReLU, "GELU": GELU, }
-
     @staticmethod
-    def Acts_parse(v):    
-        # already parsed
-        if isinstance(v, Acts.types):
-            return v
-        # raw input must be a dict with uuid like "ReLU:..."
-        if not isinstance(v, dict):
-            raise TypeError("act must be a dict or an instance")
-        raw_uuid = v.get("uuid")
-        if not isinstance(raw_uuid, str) or ":" not in raw_uuid:
-            raise ValueError("act.uuid must look like 'ReLU:...' or 'GELU:...'")
-        kind = raw_uuid.split(":", 1)[0]
-        act_cls = Acts.cls.get(kind)
-        if act_cls is None:
-            raise ValueError(f"Unknown act type: {kind}")
-        return act_cls.model_validate(v)
-    
+    def parse(v):return Cls_parse(v,Acts.types,Acts.cls)
+
+class Norms:
+    types = Union[LayerNorm, BatchNorm2d]
+    cls = {"LayerNorm": LayerNorm, "BatchNorm2d": BatchNorm2d, }
+    @staticmethod
+    def parse(v):return Cls_parse(v,Norms.types,Norms.cls)
+
 class Conv2dAct(Conv2d):
     act: Acts.types = Field(default=ReLU())
 
     @field_validator("act", mode="before")
     @classmethod
     def parse_act(cls, v):
-        return Acts.Acts_parse(v)
+        return Acts.parse(v)
 
     def forward(self, x):
         return self.act(super().forward(x))
+
+class Conv2dNorm(Conv2d):
+    norm: Norms.types
+
+    @field_validator("norm", mode="before")
+    @classmethod
+    def parse_norm(cls, v):
+        return Norms.parse(v)
+
+    def forward(self, x):
+        return self.norm(super().forward(x))
+
+class Conv2dNormAct(Conv2dNorm):
+    act: Acts.types
+    @field_validator("act", mode="before")
+    @classmethod
+    def parse_act(cls, v):
+        return Acts.parse(v)
+    
+    def forward(self, x):
+        return self.act(super().forward(x))
+
