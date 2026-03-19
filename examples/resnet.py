@@ -33,28 +33,33 @@ class BasicBlock(nn.Module):
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
-        norm_act_dd = lambda num_features:dict(
-                norm=nn.BatchNorm2d(num_features=num_features, device=self.device, dtype=self.dtype),
-                act=self.act.clone(device=self.device, dtype=self.dtype),
-                device=self.device,
-                dtype=self.dtype,
+
+        norm_dd = lambda c: dict(
+            bias=False,
+            norm=nn.BatchNorm2d(num_features=c, device=self.device, dtype=self.dtype),
+            device=self.device,
+            dtype=self.dtype,
         )
+
+        norm_act_dd = lambda c: dict(
+            **norm_dd(c),
+            act=self.act.clone(device=self.device, dtype=self.dtype),
+        )
+        
         self.conv1 = nn.Conv2dNormAct(
             in_channels=self.in_channels,
             out_channels=self.out_channels,
             kernel_size=3,
             stride=self.stride,
             padding=1,
-            bias=False,
-            **norm_act_dd(num_features=self.out_channels),
+            **norm_act_dd(self.out_channels),
         )
         self.conv2 = nn.Conv2dNorm(
             in_channels=self.out_channels,
             out_channels=self.out_channels,
             kernel_size=3,
             padding=1,
-            bias=False,
-            **norm_act_dd(num_features=self.out_channels),
+            **norm_dd(self.out_channels),
         )
 
         if self.in_channels == self.out_channels and self.stride == 1:
@@ -65,14 +70,12 @@ class BasicBlock(nn.Module):
                 out_channels=self.out_channels,
                 kernel_size=1,
                 stride=self.stride,
-                bias=False,
-                **norm_act_dd(num_features=self.out_channels),
+                **norm_dd(self.out_channels),
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = self.shortcut(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
+        x = self.conv2(self.conv1(x))
         return self.act(x + residual)
 
 class Bottleneck(nn.Module):
@@ -104,35 +107,39 @@ class Bottleneck(nn.Module):
         super().model_post_init(context)
         out_channels = self.bottleneck_channels * self.expansion
 
-        norm_act_dd = lambda num_features:dict(
-                norm=nn.BatchNorm2d(num_features=num_features, device=self.device, dtype=self.dtype),
-                act=self.act.clone(device=self.device, dtype=self.dtype),
-                device=self.device,
-                dtype=self.dtype,
-            )
+        norm_dd = lambda c: dict(
+            bias=False,
+            norm=nn.BatchNorm2d(num_features=c, device=self.device, dtype=self.dtype),
+            device=self.device,
+            dtype=self.dtype,
+        )
+
+        norm_act_dd = lambda c: dict(
+            **norm_dd(c),
+            act=self.act.clone(device=self.device, dtype=self.dtype),
+        )
 
         self.conv1 = nn.Conv2dNormAct(
             in_channels=self.in_channels,
             out_channels=self.bottleneck_channels,
             kernel_size=1,
-            bias=False,
-            **norm_act_dd(num_features=self.bottleneck_channels),
+            **norm_act_dd(self.bottleneck_channels),
         )
+
         self.conv2 = nn.Conv2dNormAct(
             in_channels=self.bottleneck_channels,
             out_channels=self.bottleneck_channels,
             kernel_size=3,
             stride=self.stride,
             padding=1,
-            bias=False,
-            **norm_act_dd(num_features=self.bottleneck_channels),
+            **norm_act_dd(self.bottleneck_channels),
         )
+
         self.conv3 = nn.Conv2dNorm(
             in_channels=self.bottleneck_channels,
             out_channels=out_channels,
             kernel_size=1,
-            bias=False,
-            **norm_act_dd(num_features=out_channels),
+            **norm_dd(out_channels),
         )
 
         if self.in_channels == out_channels and self.stride == 1:
@@ -143,15 +150,12 @@ class Bottleneck(nn.Module):
                 out_channels=out_channels,
                 kernel_size=1,
                 stride=self.stride,
-                bias=False,
-                **norm_act_dd(num_features=out_channels),            
+                **norm_dd(out_channels),
             )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = self.shortcut(x)
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
+        x = self.conv3(self.conv2(self.conv1(x)))
         return self.act(x + residual)
 
 class ResidualStage(nn.Module):

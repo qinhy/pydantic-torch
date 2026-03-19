@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Any, List, Optional
 
 import torch
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from pydantic_torch.utils import scaled_dot_product_attention
-from pydantic_torch import modules as nn
+from pydantic_torch import nn
 
 def _trunc_normal_(t: torch.Tensor, mean: float = 0.0, std: float = 0.02, a: float = -2.0, b: float = 2.0) -> torch.Tensor:
     # Prefer native trunc_normal_ if available.
@@ -69,19 +69,22 @@ class MLP(nn.Module):
 
     fc1: nn.Linear = Field(default=None)
     fc2: nn.Linear = Field(default=None)
-    act: nn.GELU = Field(default=None)
+    act: nn.Acts.types = Field(default_factory=nn.GELU)
     dropout: nn.Dropout = Field(default=None)
+
+    @field_validator("act", mode="before")
+    @classmethod
+    def parse_act(cls, v: Any) -> nn.Acts.types:
+        return nn.Acts.parse(v)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
         self.fc1 = nn.Linear(in_features=self.dim, out_features=self.hidden_dim, device=self.device, dtype=self.dtype)
         self.fc2 = nn.Linear(in_features=self.hidden_dim, out_features=self.dim, device=self.device, dtype=self.dtype)
-        self.act = nn.GELU()
         self.dropout = nn.Dropout(p=self.drop)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.fc1(x)
-        x = self.act(x)
+        x = self.act(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
         x = self.dropout(x)
@@ -192,7 +195,7 @@ class VisionTransformer(nn.Module):
     drop_path_rate: float = Field(default=0.0, ge=0.0, le=1.0)
 
     patch_embed: PatchEmbedNoConv = Field(default=None)
-    pos_drop: nn.Dropout = Field(default=nn.Dropout)
+    pos_drop: nn.Dropout = Field(default_factory=nn.Dropout)
     blocks: List[SelfAttentionBlock] = Field(default_factory=list)
     norm: nn.LayerNorm = Field(default=None)
     head: nn.Linear = Field(default=None)
@@ -240,6 +243,8 @@ class VisionTransformer(nn.Module):
             )
             for i in range(self.depth)
         ]
+        for index, block in enumerate(self.blocks):
+            self.add_module(str(index), block)
 
         self.norm = nn.LayerNorm(normalized_shape=self.embed_dim, device=self.device, dtype=self.dtype)
         self.head = nn.Linear(in_features=self.embed_dim, out_features=self.num_classes,
@@ -274,11 +279,12 @@ class VisionTransformer(nn.Module):
             x = blk(x)
 
         x = self.norm(x)
-        return x[:, 0]  # CLS token
+        return x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         feat = self.forward_features(x)
-        return self.head(feat)
+        cls = feat[:, 0]  # CLS token
+        return self.head(cls)
 
 
 def vit_base_patch16_224(num_classes: int = 1000, drop_path_rate: float = 0.1) -> VisionTransformer:
