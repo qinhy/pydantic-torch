@@ -34,7 +34,7 @@ class Module(BaseModel, torch.nn.Module):
     training: bool = Field(default=True, exclude=True)
     uuid: str = Field(default=None)
 
-    device: str = Field(default="cpu", exclude=True)
+    device: str = Field(default="cpu")
     dtype: Any = Field(default=torch.float32, exclude=True)
 
     def __getattr__(self, name: str) -> Any:
@@ -64,11 +64,11 @@ class Module(BaseModel, torch.nn.Module):
         model.load_state_dict(state)
         return model
     
-    def save_file(self, path: str,**kwargs) -> None:
+    def save_file(self, path: str, meta: dict = {}) -> None:
         weights = self.state_dict()
         config = self.model_dump()
         state = {"model": weights, "model_dump": config}
-        state.update(kwargs)
+        state.update(meta)
         try:
             torch.save(state, path)
         except Exception as e:
@@ -80,12 +80,13 @@ class Module(BaseModel, torch.nn.Module):
         state = torch.load(path)
         weights = state.get("model", {})
         config = state.get("model_dump", None)
+        meta = {k:v for k,v in state.items() if k not in ["model", "model_dump"]}
         if config is not None:
             model = cls(**config)
         else:
             model = cls()
         model.load_state_dict(weights)
-        return model,{k:v for k,v in state.items() if k not in ["model", "model_dump"]}
+        return model,meta
 
 class Linear(Module, torch.nn.Linear):
     in_features: int = Field(default=10, ge=1)
