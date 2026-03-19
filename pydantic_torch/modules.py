@@ -240,7 +240,7 @@ class GELU(Module, torch.nn.GELU):
 
     def model_post_init(self, __context):
         super().model_post_init(__context)
-        torch.nn.GELU.__init__(self, **self.model_dump(exclude=["uuid"]))
+        torch.nn.GELU.__init__(self, **self.model_dump(exclude=["uuid","device"]))
 
 class ReLU(Module, torch.nn.ReLU):
     inplace: bool = Field(default=False)
