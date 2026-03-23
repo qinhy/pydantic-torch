@@ -20,7 +20,27 @@ dev = [
 requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+exclude = [
+  "/.data",
+  "/.pytest_cache",
+  "/.venv",
+  "/.venv.linux",
+  "/dist",
+  "/pydantic_torch/__pycache__",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/LICENSE",
+  "/README.md",
+  "/pyproject.toml",
+  "/pydantic_torch",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pydantic_torch"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-
