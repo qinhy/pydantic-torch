@@ -3,7 +3,7 @@ name = "pydantic-torch"
 version = "0.1.0"
 description = "Pydantic + PyTorch hybrid module utilities"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
   "pydantic>=2.7",
   "torch>=2.2",
@@ -11,7 +11,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "numpy>=2.4.2",
     "pytest>=8.0",
     "torchvision>=0.25.0",
 ]
