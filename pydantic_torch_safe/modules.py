@@ -21,10 +21,10 @@ class Module(torch.nn.Module):
 
     def __init__(self, config: Conf | dict = None):
         super().__init__()
+        config.uuid = f"{self.__class__.__name__}:{config.uuid.split(':')[-1]}"
         self._config = config
 
     def model_dump(self) -> dict:
-        self._config.uuid = f"{self.__class__.__name__}:{self._config.uuid.split(':')[-1]}"
         return self._config.model_dump()
 
     def clone(self, **kwargs):

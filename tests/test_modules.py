@@ -17,9 +17,9 @@ class ThreeLayerNet(nn.Module):
     hidden_features: int = Field(default=8, ge=1)
     out_features: int = Field(default=5, ge=1)
 
-    linear1: nn.Linear = Field(default=None)
-    linear2: nn.Linear = Field(default=None)
-    linear3: nn.Linear = Field(default=None)
+    linear1: nn.Linear = Field(default=None,exclude=True)
+    linear2: nn.Linear = Field(default=None,exclude=True)
+    linear3: nn.Linear = Field(default=None,exclude=True)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)

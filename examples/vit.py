@@ -28,7 +28,7 @@ class PatchEmbedNoConv(nn.Module):
 
     num_patches: int = Field(default=0, ge=0)
 
-    proj: nn.Linear = Field(default=None)
+    proj: nn.Linear = Field(default=None, exclude=True)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -67,10 +67,10 @@ class MLP(nn.Module):
     hidden_dim: int = Field(default=3072, ge=1)
     drop: float = Field(default=0.0, ge=0.0, le=1.0)
 
-    fc1: nn.Linear = Field(default=None)
-    fc2: nn.Linear = Field(default=None)
+    fc1: nn.Linear = Field(default=None, exclude=True)
+    fc2: nn.Linear = Field(default=None, exclude=True)
     act: nn.Acts.types = Field(default_factory=nn.GELU)
-    dropout: nn.Dropout = Field(default=None)
+    dropout: nn.Dropout = Field(default=None, exclude=True)
 
     @field_validator("act", mode="before")
     @classmethod
@@ -98,10 +98,10 @@ class Attention(nn.Module):
     attn_drop: float = Field(default=0.0, ge=0.0, le=1.0)
     proj_drop: float = Field(default=0.0, ge=0.0, le=1.0)
 
-    qkv: nn.Linear = Field(default=None)
-    proj: nn.Linear = Field(default=None)
-    attn_dropout: nn.Dropout = Field(default=None)
-    proj_dropout: nn.Dropout = Field(default=None)
+    qkv: nn.Linear = Field(default=None, exclude=True)
+    proj: nn.Linear = Field(default=None, exclude=True)
+    attn_dropout: nn.Dropout = Field(default=None, exclude=True)
+    proj_dropout: nn.Dropout = Field(default=None, exclude=True)
 
     head_dim: int = Field(default=0, ge=0)
     scale: float = Field(default=0.0)
@@ -146,12 +146,12 @@ class SelfAttentionBlock(nn.Module):
     attn_drop: float = Field(default=0.0, ge=0.0, le=1.0)
     drop_path: float = Field(default=0.0, ge=0.0, le=1.0)
 
-    norm1: nn.LayerNorm = Field(default=None)
-    norm2: nn.LayerNorm = Field(default=None)
-    attn: Attention = Field(default=None)
-    mlp: MLP = Field(default=None)
-    dp1: nn.DropPath = Field(default=None)
-    dp2: nn.DropPath = Field(default=None)
+    norm1: nn.LayerNorm = Field(default=None, exclude=True)
+    norm2: nn.LayerNorm = Field(default=None, exclude=True)
+    attn: Attention = Field(default=None, exclude=True)
+    mlp: MLP = Field(default=None, exclude=True)
+    dp1: nn.DropPath = Field(default=None, exclude=True)
+    dp2: nn.DropPath = Field(default=None, exclude=True)
 
     def model_post_init(self, context: Any) -> None:
         super().model_post_init(context)
@@ -194,11 +194,11 @@ class VisionTransformer(nn.Module):
     attn_drop_rate: float = Field(default=0.0, ge=0.0, le=1.0)
     drop_path_rate: float = Field(default=0.0, ge=0.0, le=1.0)
 
-    patch_embed: PatchEmbedNoConv = Field(default=None)
-    pos_drop: nn.Dropout = Field(default_factory=nn.Dropout)
-    blocks: List[SelfAttentionBlock] = Field(default_factory=list)
-    norm: nn.LayerNorm = Field(default=None)
-    head: nn.Linear = Field(default=None)
+    patch_embed: PatchEmbedNoConv = Field(default=None, exclude=True)
+    pos_drop: nn.Dropout = Field(default_factory=nn.Dropout, exclude=True)
+    blocks: List[SelfAttentionBlock] = Field(default_factory=list, exclude=True)
+    norm: nn.LayerNorm = Field(default=None, exclude=True)
+    head: nn.Linear = Field(default=None, exclude=True)
 
     # Parameters (learned)
     cls_token: Optional[torch.nn.Parameter] = Field(default=None, exclude=True)
