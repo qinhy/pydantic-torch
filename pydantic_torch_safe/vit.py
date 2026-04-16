@@ -7,6 +7,7 @@ from pydantic import Field, field_validator
 
 from pydantic_torch.utils import scaled_dot_product_attention
 from pydantic_torch_safe import nn
+from pydantic_torch_safe.utils import bind_nested_classes
 
 def _trunc_normal_(t: torch.Tensor, mean: float = 0.0, std: float = 0.02, a: float = -2.0, b: float = 2.0) -> torch.Tensor:
     # Prefer native trunc_normal_ if available.
@@ -19,7 +20,7 @@ def _trunc_normal_(t: torch.Tensor, mean: float = 0.0, std: float = 0.02, a: flo
         t.clamp_(min=a * std + mean, max=b * std + mean)
     return t
 
-
+@bind_nested_classes
 class PatchEmbedNoConv(nn.Module):
     class Conf(nn.Module.Conf):
         img_size: int = Field(default=224, ge=1)
@@ -61,6 +62,7 @@ class PatchEmbedNoConv(nn.Module):
         return x
 
 
+@bind_nested_classes
 class MLP(nn.Module):
     class Conf(nn.Module.Conf):
         dim: int = Field(default=768, ge=1)
@@ -90,6 +92,7 @@ class MLP(nn.Module):
         x = self.dropout(x)
         return x
 
+@bind_nested_classes
 class Attention(nn.Module):
     class Conf(nn.Module.Conf):
         dim: int = Field(default=768, ge=1)
@@ -140,7 +143,8 @@ class Attention(nn.Module):
         out = self.proj(out)
         out = self.proj_dropout(out)
         return out
-    
+
+@bind_nested_classes
 class SelfAttentionBlock(nn.Module):
     class Conf(nn.Module.Conf):
         dim: int = Field(default=768, ge=1)
@@ -182,7 +186,8 @@ class SelfAttentionBlock(nn.Module):
         x = x + self.dp1(self.attn(self.norm1(x)))
         x = x + self.dp2(self.mlp(self.norm2(x)))
         return x
-    
+
+@bind_nested_classes
 class VisionTransformer(nn.Module):
     class Conf(nn.Module.Conf):
         img_size: int = Field(default=224, ge=1)

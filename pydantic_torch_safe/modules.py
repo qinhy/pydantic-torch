@@ -9,11 +9,20 @@ import torch
 from pydantic import BaseModel, Field
 from pydantic.config import ConfigDict
 
+from .utils import bind_nested_classes
 
+@bind_nested_classes
 class Module(torch.nn.Module):
     class Conf(BaseModel):
         model_config = ConfigDict(extra="forbid")
         uuid: str = Field(default=None)
+
+        @classmethod
+        def parent_cls(cls):
+            return cls.__outer_class__
+        
+        def build(self):
+            return self.parent_cls()(self)
 
         def model_post_init(self, __context: Any) -> None:
             self.uuid = str(uuid4())
@@ -62,7 +71,7 @@ class Module(torch.nn.Module):
         meta = {k: v for k, v in state.items() if k not in {"model", "model_dump"}}
         return model, meta
 
-
+@bind_nested_classes
 class Linear(Module, torch.nn.Linear):
     class Conf(Module.Conf):
         in_features: int = Field(default=10, ge=1)
@@ -80,7 +89,7 @@ class Linear(Module, torch.nn.Linear):
         )
         self._config = config
 
-
+@bind_nested_classes
 class Conv2d(Module, torch.nn.Conv2d):
     class Conf(Module.Conf):
         in_channels: int = Field(default=1, ge=1)
@@ -109,7 +118,7 @@ class Conv2d(Module, torch.nn.Conv2d):
             padding_mode=config.padding_mode,
         )
         self._config = config
-
+@bind_nested_classes
 class LayerNorm(Module, torch.nn.LayerNorm):
     class Conf(Module.Conf):
         normalized_shape: Union[int, List[int], Tuple[int, ...]]
@@ -127,7 +136,7 @@ class LayerNorm(Module, torch.nn.LayerNorm):
         )
         self._config = config
 
-
+@bind_nested_classes
 class BatchNorm2d(Module, torch.nn.BatchNorm2d):
     class Conf(Module.Conf):
         num_features: int = Field(default=1, ge=1)
@@ -149,7 +158,7 @@ class BatchNorm2d(Module, torch.nn.BatchNorm2d):
         )
         self._config = config
 
-
+@bind_nested_classes
 class MaxPool2d(Module, torch.nn.MaxPool2d):
     class Conf(Module.Conf):
         kernel_size: Union[int, Tuple[int, int]] = Field(default=2)
@@ -173,7 +182,7 @@ class MaxPool2d(Module, torch.nn.MaxPool2d):
         )
         self._config = config
 
-
+@bind_nested_classes
 class AdaptiveAvgPool2d(Module, torch.nn.AdaptiveAvgPool2d):
     class Conf(Module.Conf):
         output_size: Union[int, Tuple[Optional[int], Optional[int]]] = Field(default=1)
@@ -187,7 +196,7 @@ class AdaptiveAvgPool2d(Module, torch.nn.AdaptiveAvgPool2d):
         )
         self._config = config
 
-
+@bind_nested_classes
 class Embedding(Module, torch.nn.Embedding):
     class Conf(Module.Conf):
         num_embeddings: int = Field(default=1, ge=1)
@@ -215,7 +224,7 @@ class Embedding(Module, torch.nn.Embedding):
         self.weight.requires_grad_(not config.freeze)
         self._config = config
 
-
+@bind_nested_classes
 class GELU(Module, torch.nn.GELU):
     class Conf(Module.Conf):
         approximate: Literal["none", "tanh"] = Field(default="none")
@@ -229,7 +238,7 @@ class GELU(Module, torch.nn.GELU):
         )
         self._config = config
 
-
+@bind_nested_classes
 class ReLU(Module, torch.nn.ReLU):
     class Conf(Module.Conf):
         inplace: bool = Field(default=False)
@@ -243,7 +252,7 @@ class ReLU(Module, torch.nn.ReLU):
         )
         self._config = config
 
-
+@bind_nested_classes
 class Dropout(Module, torch.nn.Dropout):
     class Conf(Module.Conf):
         p: float = Field(default=0.5, ge=0.0, le=1.0)
@@ -259,7 +268,7 @@ class Dropout(Module, torch.nn.Dropout):
         )
         self._config = config
 
-
+@bind_nested_classes
 class DropPath(Module):
     class Conf(Module.Conf):
         drop_prob: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -282,7 +291,7 @@ class DropPath(Module):
         mask = x.new_empty(shape).bernoulli_(keep_prob)
         return x * mask / keep_prob
 
-
+@bind_nested_classes
 class Identity(Module, torch.nn.Identity):
     class Conf(Module.Conf):
         pass
@@ -294,13 +303,11 @@ class Identity(Module, torch.nn.Identity):
         self._config = config
         
 if __name__ == "__main__":
-    linear = Linear(
-        Linear.Conf(
+    linear = Linear.Conf(
             in_features=8,
             out_features=4,
             bias=True,
-        )
-    )
+        ).build()
 
     x = torch.randn(2, 8)
     y = linear(x)

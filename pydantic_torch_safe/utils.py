@@ -47,3 +47,9 @@ def Cls_parse(v: Any, cls_dict: dict[str, type]) -> Any:
     if module_cls is None:
         raise ValueError(f"unknown module type: {kind}")
     return module_cls(module_cls.Conf.model_validate(v))
+
+def bind_nested_classes(cls):
+    for name, obj in vars(cls).items():
+        if isinstance(obj, type) and obj.__module__ == cls.__module__:
+            obj.__outer_class__ = cls
+    return cls
